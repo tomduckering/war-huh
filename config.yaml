@@ -1,0 +1,3 @@
+port: 8000
+warPath: crowd.war
+crowdHome: /tmp/crowdhome

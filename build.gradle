@@ -1,0 +1,60 @@
+apply plugin: 'java'
+apply plugin: 'maven'
+
+buildNumber = System.env.BUILD_NUMBER;
+if(buildNumber == null)
+    buildNumber = "SNAPSHOT";
+
+majorBuildVersion = "1.0"
+version = majorBuildVersion + "." + buildNumber
+archivesBaseName = "crowdcontrol";
+
+task getCrowd << {
+    def proc = "./get_crowd.sh".execute()
+    proc.in.eachLine {line -> println line}
+    proc.err.eachLine {line -> println 'ERROR: ' + line}
+    proc.waitFor()
+}
+jar.dependsOn(getCrowd)
+
+task applicationTar(dependsOn: 'jar', type: Tar) {
+    baseName = "crowdcontrol"
+    destinationDir = new File(project.buildDir.path+'/tar')
+    compression = Compression.GZIP
+    from(jar)
+    from("crowd.war","crowd-openid.war")
+}
+
+artifacts {
+    archives applicationTar
+}
+
+jar {
+    dependsOn configurations.runtime
+    manifest.attributes("Main-Class": "org.duckering.crowdcontrol.CrowdControl")
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    from { configurations.runtime.collect { it.isDirectory() ? it : zipTree(it) } }
+    exclude("META-INF/*.SF", "META-INF/*.RSA", "META-INF/*.DSA")
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile group: 'org.eclipse.jetty', name: 'jetty-server',       version: '8.1.9.v20130131'
+    compile group: 'org.eclipse.jetty', name: 'jetty-webapp',       version: '8.1.9.v20130131'
+    compile group: 'com.esotericsoftware.yamlbeans', name: 'yamlbeans', version: '1.06'
+
+    runtime group: 'javax.transaction', name: 'jta',                version: '1.1'
+    runtime group: 'javax.mail',        name: 'mail',               version: '1.4.7'
+    runtime group: 'org.eclipse.jetty', name: 'jetty-servlet',      version: '8.1.9.v20130131'
+    runtime group: 'org.eclipse.jetty', name: 'jetty-util',         version: '8.1.9.v20130131'
+    runtime group: 'org.eclipse.jetty', name: 'jetty-io',           version: '8.1.9.v20130131'
+    runtime group: 'org.mortbay.jetty', name: 'jsp-2.1-glassfish',  version: '2.1.v20100127'
+    runtime group: 'mysql',             name: 'mysql-connector-java',version: '5.1.25'
+    runtime group: 'org.hsqldb',        name: 'hsqldb',             version: '2.2.9'
+
+    testCompile    group: 'junit',             name: 'junit',              version: '4.11'
+}
+
